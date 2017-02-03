@@ -14,45 +14,51 @@ def sphericalVRCameraLens(ew, ln, lf, ih, iv, ior, eye):
     rf = lf / m.cos(urh / 2) # point radius far
     gb0 = -eye * m.tan(urh / 2) / m.sin((m.pi + urh) / 2 - lfr) * m.sin(lfr) # point radius gap base #0
     gb1 = eye * m.tan(urh / 2) / m.sin((m.pi - urh) / 2 - lfr) * m.sin(lfr) # point radius gap base #1
-    rn0, rn1, rn2, rn3, rf0, rf1, rf2, rf3 = [], [], [], [], [], [], [], []
-    rv0, rv1 = 0, urv
-    for pv in range(iv): # pixel width count
-        cosv0, cosv1 = m.cos(rv0-m.pi/2), m.cos(rv1-m.pi/2)
-        rn0.append(rn + ln * gb0 * cosv0) # point radius near #0
-        rn1.append(rn + ln * gb0 * cosv1) # point radius near #1
-        rn2.append(rn + ln * gb1 * cosv1) # point radius near #2
-        rn3.append(rn + ln * gb1 * cosv0) # point radius near #3
-        rf0.append(rf + lf * gb1 * cosv0) # point radius far #0
-        rf1.append(rf + lf * gb1 * cosv1) # point radius far #1
-        rf2.append(rf + lf * gb0 * cosv1) # point radius far #2
-        rf3.append(rf + lf * gb0 * cosv0) # point radius far #3
-        rv0 += urv
-        rv1 += urv
-    rv0, rv1 = 0, urv
-    lensh, lensv = [], []
+    fm = (ew * m.sin((urh+m.pi)*eye/2) / 2,ew * m.cos((urh+m.pi)*eye/2) / 2) # far movement value
+    rn0, rn1, rf0, rf1 = [], [], [], []
+    rv = urv
+    for pv in range(iv-1): # pixel width count
+        cosv = m.cos(rv-m.pi/2)
+        rn0.append(rn + ln * gb0 * cosv) # point radius near #0
+        rn1.append(rn + ln * gb1 * cosv) # point radius near #1
+        rf0.append(rf + lf * gb1 * cosv) # point radius far #0
+        rf1.append(rf + lf * gb0 * cosv) # point radius far #1
+        rv += urv
     cosh0, cosh1 = 1, m.cos(urh)
     sinh0, sinh1 = 0, m.sin(urh)
-    for pv in range(iv): # pixel virtical count
-        cosv0, cosv1 = m.cos(rv0-m.pi/2), m.cos(rv1-m.pi/2)
-        sinv0, sinv1 = m.sin(rv0-m.pi/2), m.sin(rv1-m.pi/2)
-        pn = [
-            (sinh0 * cosv0 * rn0[pv], sinv0 * rn0[pv], cosh0 * cosv0 * rn0[pv]),
-            (sinh0 * cosv1 * rn1[pv], sinv1 * rn1[pv], cosh0 * cosv1 * rn1[pv]),
-            (sinh1 * cosv1 * rn2[pv], sinv1 * rn2[pv], cosh1 * cosv1 * rn2[pv]),
-            (sinh1 * cosv0 * rn3[pv], sinv0 * rn3[pv], cosh1 * cosv0 * rn3[pv]),
+    pn = [ (0, -rn, 0),
+        (sinh0 * m.cos(urv-m.pi/2) * rn0[0], m.sin(urv-m.pi/2) * rn0[0], cosh0 * m.cos(urv-m.pi/2) * rn0[0]),
+        (sinh1 * m.cos(urv-m.pi/2) * rn1[0], m.sin(urv-m.pi/2) * rn1[0], cosh1 * m.cos(urv-m.pi/2) * rn1[0]),
+    ]
+    lensvn = cmds.polyCreateFacet(ch=0,p=pn)[0]
+    rv = 2*urv
+    for pv in range(iv-2): # pixel virtical count
+        cosv, sinv = m.cos(rv-m.pi/2), m.sin(rv-m.pi/2)
+        pn = [ 3*pv+1,
+            (sinh0 * cosv * rn0[pv+1], sinv * rn0[pv+1], cosh0 * cosv * rn0[pv+1]),
+            (sinh1 * cosv * rn1[pv+1], sinv * rn1[pv+1], cosh1 * cosv * rn1[pv+1]),
         ]
-        lensv.append(cmds.polyCreateFacet(ch=0,p=pn)[0])
-        pf = [
-            (sinh1 * cosv0 * rf0[pv], sinv0 * rf0[pv], cosh1 * cosv0 * rf0[pv]),
-            (sinh1 * cosv1 * rf1[pv], sinv1 * rf1[pv], cosh1 * cosv1 * rf1[pv]),
-            (sinh0 * cosv1 * rf2[pv], sinv1 * rf2[pv], cosh0 * cosv1 * rf2[pv]),
-            (sinh0 * cosv0 * rf3[pv], sinv0 * rf3[pv], cosh0 * cosv0 * rf3[pv]),
+        cmds.polyAppend(ch=0,a=pn)
+        rv += urv
+    pn = [ 3*(iv-2)+1, (0, rn, 0)]
+    cmds.polyAppend(ch=0,a=pn)
+    pf = [ (fm[0], -rf, fm[1]),
+        (sinh1 * m.cos(urv-m.pi/2) * rf0[0] + fm[0], m.sin(urv-m.pi/2) * rf0[0] + fm[1], cosh1 * m.cos(urv-m.pi/2) * rf0[0] + fm[1]),
+        (sinh0 * m.cos(urv-m.pi/2) * rf1[0] + fm[0], m.sin(urv-m.pi/2) * rf1[0] + fm[1], cosh0 * m.cos(urv-m.pi/2) * rf1[0] + fm[1]),
+    ]
+    lensvf = cmds.polyCreateFacet(ch=0,p=pf)[0]
+    rv = 2*urv
+    for pv in range(iv-2): # pixel virtical count
+        cosv, sinv = m.cos(rv-m.pi/2), m.sin(rv-m.pi/2)
+        pf = [ 3*pv+1,
+            (sinh1 * cosv * rf0[pv+1] + fm[0], sinv * rf0[pv+1] + fm[1], cosh1 * cosv * rf0[pv+1] + fm[1]),
+            (sinh0 * cosv * rf1[pv+1] + fm[0], sinv * rf1[pv+1] + fm[1], cosh0 * cosv * rf1[pv+1] + fm[1]),
         ]
-        lensv.append(cmds.polyCreateFacet(ch=0,p=pf)[0])
-        cmds.move(ew * m.sin((urh+m.pi)*eye/2) / 2,0,ew * m.cos((urh+m.pi)*eye/2) / 2)
-        rv0 += urv
-        rv1 += urv
-    lensh.append(cmds.polyUnite(lensv, ch=0)[0])
+        cmds.polyAppend(ch=0,a=pf)
+        rv += urv
+    pf = [ 3*(iv-2)+1, (fm[0], rf, fm[1])]
+    cmds.polyAppend(ch=0,a=pf)
+    lensh = [cmds.polyUnite([lensvn, lensvf], ch=0)[0]]
     prog = 0
     print "[" + ("----@" * 20) + "]"
     sys.stdout.write("[")
@@ -65,4 +71,4 @@ def sphericalVRCameraLens(ew, ln, lf, ih, iv, ior, eye):
                 sys.stdout.write("@" if prog%5 == 0 else "#")
     cmds.polyUnite(lensh, ch=0,n='sphericalVRCameraLens01')
     print "]"
-sphericalVRCameraLens(3,20,60,960,540,1.1,1)
+sphericalVRCameraLens(3,20,60,40,40,1.1,1)
